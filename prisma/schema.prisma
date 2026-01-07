@@ -1,0 +1,181 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id                String   @id @default(cuid())
+  email             String   @unique
+  passwordHash      String?
+  name              String?
+  username          String?  @unique
+  preferredLanguage String   @default("en")
+  role              String   @default("user")
+  xpTotal           Int      @default(0)
+  level             Int      @default(1)
+  streakCurrent     Int      @default(0)
+  streakBest        Int      @default(0)
+  lastActiveDate    DateTime?
+  
+  plan              String   @default("free")
+  stripeCustomerId  String?
+  planExpiresAt     DateTime?
+  
+  progress          UserStepProgress[]
+  xpEvents          XpEvent[]
+  monthlyScores     MonthlyScore[]
+  
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+}
+
+model Track {
+  id          String   @id @default(cuid())
+  slug        String   @unique
+  title       String
+  description String?
+  difficulty  String
+  order       Int
+  modules     Module[]
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model Module {
+  id          String   @id @default(cuid())
+  trackId     String
+  track       Track    @relation(fields: [trackId], references: [id], onDelete: Cascade)
+  title       String
+  description String?
+  order       Int
+  lessons     Lesson[]
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model Lesson {
+  id          String   @id @default(cuid())
+  moduleId    String
+  module      Module   @relation(fields: [moduleId], references: [id], onDelete: Cascade)
+  title       String
+  description String?
+  order       Int
+  steps       Step[]
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model Step {
+  id          String   @id @default(cuid())
+  lessonId    String
+  lesson      Lesson   @relation(fields: [lessonId], references: [id], onDelete: Cascade)
+  type        String
+  order       Int
+  
+  codeSnippet String?
+  solution    String?
+  testConfig  String?
+  
+  aiContext   String
+  maxHints    Int      @default(3)
+  
+  translations StepTranslation[]
+  progress     UserStepProgress[]
+  
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}
+
+model StepTranslation {
+  id             String   @id @default(cuid())
+  stepId         String
+  step           Step     @relation(fields: [stepId], references: [id], onDelete: Cascade)
+  language       String
+  title          String
+  body           String
+  choices        String?
+  feedbackCorrect String?
+  feedbackWrong  String?
+  
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  
+  @@unique([stepId, language])
+}
+
+model UserStepProgress {
+  id             String   @id @default(cuid())
+  userId         String
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  stepId         String
+  step           Step     @relation(fields: [stepId], references: [id], onDelete: Cascade)
+  status         String   @default("not_started")
+  attempts       Int      @default(0)
+  usedHints      Int      @default(0)
+  bestScore      Int      @default(0)
+  lastAttemptAt  DateTime?
+  
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  
+  @@unique([userId, stepId])
+}
+
+model XpEvent {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type      String
+  value     Int
+  createdAt DateTime @default(now())
+}
+
+model MonthlyScore {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  month     String
+  points    Int      @default(0)
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  @@unique([userId, month])
+}
+
+model MonthlyPrizeConfig {
+  id          String   @id @default(cuid())
+  month       String
+  rank        Int
+  prizeType   String
+  description String
+  imageUrl    String?
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  @@unique([month, rank])
+}
+
+model MonthlyWinner {
+  id          String   @id @default(cuid())
+  month       String
+  rank        Int
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  prizeType   String
+  notifiedAt  DateTime?
+  accepted    Boolean  @default(false)
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  @@unique([month, rank])
+}
